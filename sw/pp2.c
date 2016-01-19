@@ -38,7 +38,7 @@ void comErr(char *fmt, ...) {
 	fprintf(stderr,"%s", buf);
 	perror(COM);
 	va_end(va);
-	abort(); 
+	abort();
 	}
 
 void flsprintf(FILE* f, char *fmt, ...) {
@@ -50,30 +50,30 @@ void flsprintf(FILE* f, char *fmt, ...) {
 	fflush(f);
 	va_end(va);
 	}
-	
-	
+
+
 #if defined(__linux__)
-	
+
 void initSerialPort() {
 	baudRate=B57600;
 	if (verbose>2)
 		printf("Opening: %s at %d\n",COM,baudRate);
 	com =  open(COM, O_RDWR | O_NOCTTY | O_NDELAY);
-	if (com <0) 
+	if (com <0)
 		comErr("Failed to open serial port");
 
 	struct termios opts;
-	memset (&opts,0,sizeof (opts));	
-	
-	fcntl(com, F_SETFL, 0);	
+	memset (&opts,0,sizeof (opts));
+
+	fcntl(com, F_SETFL, 0);
 
 	if (tcgetattr(com, &opts)!=0)
 		{
 		printf("Err tcgetattr\n");
 		}
 
-	cfsetispeed(&opts, baudRate);   
-	cfsetospeed(&opts, baudRate);  
+	cfsetispeed(&opts, baudRate);
+	cfsetospeed(&opts, baudRate);
 
 	opts.c_lflag  &=  ~(ICANON | ECHO | ECHOE | ISIG);
 
@@ -82,24 +82,24 @@ void initSerialPort() {
 	opts.c_cflag &= ~CSTOPB;
 	opts.c_cflag &=  ~CSIZE;
 	opts.c_cflag |=  CS8;
-	
+
 	opts.c_oflag &=  ~OPOST;
-	
+
 	opts.c_iflag &=  ~INPCK;
-	opts.c_iflag &=  ~(IXON | IXOFF | IXANY);	
+	opts.c_iflag &=  ~(IXON | IXOFF | IXANY);
 	opts.c_cc[ VMIN ] = 0;
 	opts.c_cc[ VTIME ] = 10;//0.1 sec
-	
+
 
 
 	if (tcsetattr(com, TCSANOW, &opts) != 0) {
-		perror(COM); 
+		perror(COM);
 		printf("set attr error");
-		abort(); 
+		abort();
 		}
-		
+
 	tcflush(com,TCIOFLUSH); // just in case some crap is the buffers
-	/*	
+	/*
 	char buf = -2;
 	while (read(com, &buf, 1)>0) {
 		if (verbose)
@@ -108,7 +108,7 @@ void initSerialPort() {
 */
 	}
 
-	
+
 	void putByte(int byte) {
 	char buf = byte;
 	if (verbose>3)
@@ -117,7 +117,7 @@ void initSerialPort() {
 	if (n != 1)
 		comErr("Serial port failed to send a byte, write returned %d\n", n);
 	}
-	
+
 int getByte() {
 	char buf;
 	int n = read(com, &buf, 1);
@@ -125,15 +125,15 @@ int getByte() {
 		flsprintf(stdout,n<1?"RX: fail\n":"RX:  0x%02X\n", buf & 0xFF);
 	if (n == 1)
 		return buf & 0xFF;
-	
+
 	comErr("Serial port failed to receive a byte, read returned %d\n", n);
 	return -1; // never reached
 	}
 #else
 
 HANDLE port_handle;
-	
-void initSerialPort() 
+
+void initSerialPort()
 {
 
 char mode[40],portname[20];
@@ -156,7 +156,7 @@ strcat(portname,COM);
   strcpy (mode,"baud=57600 data=8 parity=n stop=1");
   memset(&port_sets, 0, sizeof(port_sets));  /* clear the new struct  */
   port_sets.DCBlength = sizeof(port_sets);
-  
+
   if(!BuildCommDCBA(mode, &port_sets))
   {
 	printf("dcb settings failed\n");
@@ -184,10 +184,10 @@ strcat(portname,COM);
     CloseHandle(port_handle);
     exit(0);
   }
-  
-  
+
+
 }
-void putByte(int byte) 
+void putByte(int byte)
 {
   int n;
   	if (verbose>3)
@@ -196,14 +196,14 @@ void putByte(int byte)
   	if (n != 1)
 		comErr("Serial port failed to send a byte, write returned %d\n", n);
 }
-	
-int getByte() 
+
+int getByte()
 {
 unsigned char buf[2];
 int n;
 ReadFile(port_handle, buf, 1, (LPDWORD)((void *)&n), NULL);
 	if (verbose>3)
-		flsprintf(stdout,n<1?"RX: fail\n":"RX:  0x%02X\n", buf[0] & 0xFF);	
+		flsprintf(stdout,n<1?"RX: fail\n":"RX:  0x%02X\n", buf[0] & 0xFF);
 	if (n == 1)
 		return buf[0] & 0xFF;
 	comErr("Serial port failed to receive a byte, read returned %d\n", n);
@@ -211,18 +211,18 @@ ReadFile(port_handle, buf, 1, (LPDWORD)((void *)&n), NULL);
 	}
 #endif
 
-	
+
 
 void sleep_ms (int num)
 {
 	struct timespec tspec;
 	tspec.tv_sec=num/1000;
-	tspec.tv_nsec=(num%1000)*1000000; 
+	tspec.tv_nsec=(num%1000)*1000000;
 	nanosleep(&tspec,0);
 }
-	
-		
-/*	
+
+
+/*
 int getIntArg(char* arg) {
 	if (strlen(arg)>=2 && memcmp(arg,"0x",2)==0) {
 		unsigned int u;
@@ -241,52 +241,66 @@ void printHelp() {
 		flsprintf(stdout,"pp programmer\n");
 	exit(0);
 	}
-	
+
 
 void setCPUtype(char* cpu) {
-	if (strcmp("16f1507",cpu)==0) 
+	if (strcmp("16f1454",cpu)==0)
+		{
+		flash_size = 16384;
+		page_size = 64;
+		devid_expected = 0x3020;
+		devid_mask = 0x3FFF;
+		}
+	else if (strcmp("16f1503",cpu)==0)
+		{
+		flash_size = 4096;
+		page_size = 32;
+		devid_expected = 0x2CE0;
+		devid_mask = 0xFFE0;
+		}
+	else if (strcmp("16f1507",cpu)==0) 
 		{
 		flash_size = 4096;		//bytes, where 1word = 2bytes, though actually being 14 bits
 		page_size = 32;			//bytes
 		devid_expected = 0x2D00;
 		devid_mask = 0xFFE0;
 		}
-	else if (strcmp("16f1508",cpu)==0) 
+	else if (strcmp("16f1508",cpu)==0)
 		{
 		flash_size = 8192;
 		page_size = 64;
 		devid_expected = 0x2D20;
 		devid_mask = 0xFFE0;
 		}
-	else if (strcmp("16f1509",cpu)==0) 
+	else if (strcmp("16f1509",cpu)==0)
 		{
 		flash_size = 16384;
 		page_size = 64;
 		devid_expected = 0x2D40;
 		devid_mask = 0xFFE0;
 		}
-	else if (strcmp("16f1829",cpu)==0) 
+	else if (strcmp("16f1829",cpu)==0)
 		{
 		flash_size = 16384;
 		page_size = 64;
 		devid_expected = 0x27E0;
 		devid_mask = 0xFFE0;
 		}
-	else if (strcmp("16lf1829",cpu)==0) 
+	else if (strcmp("16lf1829",cpu)==0)
 		{
 		flash_size = 16384;
 		page_size = 64;
 		devid_expected = 0x28E0;
 		devid_mask = 0xFFE0;
 		}
-	else if (strcmp("16f1825",cpu)==0) 
+	else if (strcmp("16f1825",cpu)==0)
 		{
 		flash_size = 16384;
 		page_size = 64;
 		devid_expected = 0x2760;
 		devid_mask = 0xFFE0;
 		}
-	else if (strcmp("16lf1825",cpu)==0) 
+	else if (strcmp("16lf1825",cpu)==0)
 		{
 		flash_size = 16384;
 		page_size = 64;
@@ -300,11 +314,11 @@ void setCPUtype(char* cpu) {
 		}
 	}
 
-void parseArgs(int argc, char *argv[]) {	
+void parseArgs(int argc, char *argv[]) {
 	int c;
 	while ((c = getopt (argc, argv, "c:nps:t:v:")) != -1) {
 		switch (c) {
-			case 'c' : 
+			case 'c' :
 				COM=optarg;
 				break;
 			case 'n':
@@ -313,7 +327,7 @@ void parseArgs(int argc, char *argv[]) {
 			case 'p':
 		    	program = 0;
 			    break;
-			case 's' : 
+			case 's' :
 				sscanf(optarg,"%d",&sleep_time);
 				break;
 			case 't' :
@@ -332,7 +346,7 @@ void parseArgs(int argc, char *argv[]) {
 				abort ();
 			}
 		}
-	if (argc<=1) 
+	if (argc<=1)
 		printHelp();
 	}
 
@@ -480,18 +494,18 @@ return 0;
 
 
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 	{
 	unsigned char tdat[128];
 	int i,j,devid,config,econfig;
 	i = 5;
 
 	printf ("\n");
-	
+
 	parseArgs(argc,argv);
 	printf ("Opening serial port\n");
 	initSerialPort();
-	
+
 	if (sleep_time>0)
 		{
 		printf ("Sleeping for %d ms\n", sleep_time);
@@ -512,19 +526,19 @@ int main(int argc, char *argv[])
 		printf ("Error opening file \n");
 	for (i=0;i<70000;i++)
 		{
-		if ((i%2)!=0) 
+		if ((i%2)!=0)
 			file_image[i] = 0x3F&file_image[i];
 		}
 
-	
+
 	enter_progmode();
-	
+
 	devid = get_devid();
 	if (devid_expected == (devid&devid_mask))
 		printf ("Device ID 0x%4.4X\n",devid);
 	else
 		printf ("Unexpected device ID 0x%4.4X\n",devid);
-	
+
 
 	if (program==1)
 		{
@@ -532,13 +546,13 @@ int main(int argc, char *argv[])
 		rst_pointer();
 
 		printf ("Programming FLASH (%d B in %d pages)",flash_size,flash_size/page_size);
-		fflush(stdout); 
+		fflush(stdout);
 		for (i=0;i<flash_size;i=i+page_size)
 			{
-			if (verbose>1) 
+			if (verbose>1)
 				{
 				printf (".");
-				fflush(stdout); 
+				fflush(stdout);
 				}
 			program_page(i,page_size);
 			}
@@ -549,14 +563,14 @@ int main(int argc, char *argv[])
 	if (verify==1)
 		{
 		printf ("Verifying FLASH (%d B in %d pages)",flash_size,flash_size/page_size);
-		fflush(stdout); 
+		fflush(stdout);
 		rst_pointer();
 		for (i=0;i<flash_size;i=i+page_size)
 			{
-			if (verbose>1) 
+			if (verbose>1)
 				{
 				printf (".");
-				fflush(stdout); 
+				fflush(stdout);
 				}
 			read_page(tdat,page_size);
 			for (j=0;j<page_size;j++)
@@ -574,24 +588,22 @@ int main(int argc, char *argv[])
 		config = get_config(7);
 		econfig = (((unsigned int)(file_image[2*0x8007]))<<0) + (((unsigned int)(file_image[2*0x8007+1]))<<8);
 
-		if (config==econfig) 
+		if (config==econfig)
 			{
 			if (verbose>1) printf ("config 1 OK: %4.4X\n",config);
 			}
 		else	printf ("config 1 error: E:0x%4.4X R:0x%4.4X\n",config,econfig);
 		config = get_config(8);
 		econfig = (((unsigned int)(file_image[2*0x8008]))<<0) + (((unsigned int)(file_image[2*0x8008+1]))<<8);
-		if (config==econfig) 
+		if (config==econfig)
 			{
 			if (verbose>1) printf ("config 2 OK: %4.4X\n",config);
 			}
 		else	printf ("config 2 error: E:0x%4.4X R:0x%4.4X\n",config,econfig);
 		}
-		
+
 	printf ("Releasing MCLR\n");
 	exit_progmode();
 
 	return 0;
 	}
-
-
